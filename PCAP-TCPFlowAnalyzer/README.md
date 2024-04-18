@@ -1,4 +1,4 @@
-# CSE 310 Programming Assignment 2
+# TCP Flow Analyzer
 #### Taein Um
 
 
