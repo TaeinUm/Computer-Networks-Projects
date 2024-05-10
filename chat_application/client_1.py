@@ -58,17 +58,13 @@ class Client:
                 print("incorrect userinput format")
 
     def send_to_server(self, message_type, message_format, data=""):
-        '''
-        Constructs and sends a packet to the server based on the message type and data.
-        '''
+        #Constructs and sends a packet to the server based on the message type and data.
         msg = util.make_message(message_type, message_format, data)
         packet = util.make_packet(msg=msg)
         self.sock.sendto(packet.encode(), (self.server_addr, self.server_port))
 
     def handle_message_command(self, param):
-        '''
-        Processes the 'msg' command to send messages to other clients through the server.
-        '''
+        # Processes the 'msg' command to send messages to other clients through the server.
         user_num = int(param[0])
         user_list = param[1:user_num+1]
         message = " ".join(param[user_num+1:])
@@ -76,9 +72,7 @@ class Client:
         self.send_to_server("send_message", 4, data)
 
     def print_help(self):
-        '''
-        Displays help information about client commands.
-        '''
+        # Displays help information about client commands.
         print("Client")
         print("-u username | --user=username The username of Client")
         print("-p PORT | --port=PORT The server port, defaults to 15000")
@@ -87,9 +81,7 @@ class Client:
         print("-h | --help Print this help")
 
     def handle_quit(self):
-        '''
-        Processes the 'quit' command to disconnect from the server and exit the application.
-        '''
+        # Processes the 'quit' command to disconnect from the server and exit the application.
         self.send_to_server("disconnect", 1, self.name)
         print("quitting")
         sys.exit(0)
@@ -107,34 +99,28 @@ class Client:
 
             # Message handling based on type from server.
             if msg_type == "response_users_list":
-                self.handle_users_list(data)
+                self.handle_user_list(data)
             elif msg_type == "forward_message":
                 self.handle_forward_message(data)
             else:
                 self.handle_error_message(msg_type)
 
-    def handle_users_list(self, data):
-        '''
-        Processes and prints a list of users sent by the server.
-        '''
+    def handle_user_list(self, data):
+        # Processes and prints a list of users sent by the server.
         data = data.split(' ')
         user_num = int(data[1])
         user_list = " ".join(data[2:user_num+2])
         print(f"list: {user_list}")
 
     def handle_forward_message(self, data):
-        '''
-        Processes and displays messages forwarded by the server from other clients.
-        '''
+        # Processes and displays messages forwarded by the server from other clients.
         data = data.split(' ')
         sender = data[2]
         message = " ".join(data[3:])
         print(f"msg: {sender}: {message}")
 
     def handle_error_message(self, msg_type):
-        '''
-        Handles error messages from the server and closes the connection.
-        '''
+        # Handles error messages from the server and closes the connection.
         error_messages = {
             "err_unknown_message": "server received an unknown command",
             "err_server_full": "server full",

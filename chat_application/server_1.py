@@ -19,7 +19,7 @@ class Server:
         self.sock.settimeout(None)
         self.sock.bind((self.server_addr, self.server_port))
         self.clients = {}  # Maps usernames to address
-        self.reverse_clients = {}  # Maps addresses to usernames
+        self.clients_reversed = {}  # Maps addresses to usernames
 
     def start(self):
         '''
@@ -38,7 +38,7 @@ class Server:
             if msg_type == "join":
                 self.handle_join(msg_type, data, addr)
             elif msg_type == "request_users_list":
-                self.handle_list_request(addr)
+                self.handle_request_list(addr)
             elif msg_type == "send_message":
                 self.handle_send_message(data, addr)
             elif msg_type == "disconnect":
@@ -69,12 +69,12 @@ class Server:
         else:
             # Successful join
             self.clients[username] = addr
-            self.reverse_clients[addr] = username
+            self.clients_reversed[addr] = username
             print(f"join: {username}")
 
-    def handle_list_request(self, addr):
+    def handle_request_list(self, addr):
         # Handles request to list all users.
-        username = self.reverse_clients[addr]
+        username = self.clients_reversed[addr]
         sorted_clients = sorted(self.clients.keys())
         user_list = f"{len(sorted_clients)} {' '.join(sorted_clients)}"
         self.send_response("response_users_list", 3, user_list, addr)
@@ -82,7 +82,7 @@ class Server:
 
     def handle_send_message(self, data, addr):
         # Processes a message sending request to other clients.
-        username = self.reverse_clients[addr]
+        username = self.clients_reversed[addr]
         parts = data.split(' ')
         num_users = int(parts[1])
         user_list = parts[2:num_users+2]
@@ -101,7 +101,7 @@ class Server:
         # Handles a client's disconnection request.
         username = data.split(' ')[1]
         del self.clients[username]
-        del self.reverse_clients[addr]
+        del self.clients_reversed[addr]
         print(f"disconnected: {username}")
 
     def handle_unknown_message(self, msg_type, addr):
