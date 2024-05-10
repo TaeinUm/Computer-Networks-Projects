@@ -18,117 +18,99 @@ class Server:
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.settimeout(None)
         self.sock.bind((self.server_addr, self.server_port))
-        self.clients = {}
-        self.window = window
-        self.MAX_NUM_CLIENTS = 10
+        self.clients = {}  # Maps usernames to address
+        self.reverse_clients = {}  # Maps addresses to usernames
 
     def start(self):
         '''
         Main loop.
-        continue receiving messages from Clients and processing it.
+        Continuously receive and process messages from clients.
 
         '''
-        print("Server is starting on {} at port {}".format(self.server_addr, self.server_port))
-        try:
-            while True:
-                data, addr = self.sock.recvfrom(1024)  # Buffer size is 1024 bytes
-                self.handle_client(data, addr)
-        except KeyboardInterrupt:
-            self.shutdown_server()
+        while True:
+            msg, addr = self.sock.recvfrom(2048)  # Receives data up to 2048 bytes.
+            msg = msg.decode()  # Converts bytes to string.
 
-    def handle_client(self, data, addr):
-        try:
-            msg_type, seqno, message, checksum = util.parse_packet(data.decode('utf-8'))
-            if not util.validate_checksum(data.decode('utf-8')):
-                raise ValueError("Invalid checksum")
-            
+            pck_type, seqno, data, checksum = util.parse_packet(msg)
+            msg_type, data = data.split(' ', maxsplit=1)
+
+            # Dispatch message based on its type.
             if msg_type == "join":
-                self.handle_join(message, addr)
-            elif msg_type == "msg":
-                self.route_message(message, addr)
-            elif msg_type == "list":
-                self.send_user_list(addr)
+                self.handle_join(msg_type, data, addr)
+            elif msg_type == "request_users_list":
+                self.handle_list_request(addr)
+            elif msg_type == "send_message":
+                self.handle_send_message(data, addr)
             elif msg_type == "disconnect":
-                self.handle_disconnect(message, addr)
+                self.handle_disconnect(data, addr)
             else:
-                raise ValueError("Unknown command")
-        except ValueError as e:
-            error_msg = f"Error: {str(e)}"
-            self.send_error_message(error_msg, addr)
-            print(f"Error handling message from {addr}: {str(e)}")
+                self.handle_unknown_message(msg_type, addr)
 
-    def send_error_message(self, error_msg, addr):
-        packet = util.make_packet("error", 0, error_msg)
+    def send_response(self, message_type, message_format, data, addr):
+        # Prepares and sends a response to the client.
+        msg = util.make_message(message_type, message_format, data)
+        packet = util.make_packet(msg=msg)
         self.sock.sendto(packet.encode(), addr)
 
-    def route_message(self, message, addr):
-        parts = message.split()
-        num_users = int(parts[0])
-        usernames = parts[1:num_users + 1]
-        actual_message = ' '.join(parts[num_users + 1:])
-        sender = None
-        # Identify the sender based on the address
-        for name, address in self.clients.items():
-            if address == addr:
-                sender = name
-                break
-        if not sender:
-            print("Sender not recognized.")
-            return
+    def handle_join(self, msg_type, data, addr):
+        # Handles client join requests.
+        username = data.split(' ')[1]
 
-        print(f"Routing message from {sender} to {usernames}: {actual_message}")  # Debugging output
-        for username in usernames:
-            if username in self.clients:
-                client_addr = self.clients[username]
-                # Include the sender's name in the message
-                forward_message = f"From {sender}: {actual_message}"
-                packet = util.make_packet("msg", 0, forward_message)
-                self.sock.sendto(packet.encode(), client_addr)
-            else:
-                print(f"User {username} not found")  # Debugging output
-
-    def send_user_list(self, addr):
-        user_list = ' '.join(self.clients.keys())
-        packet = util.make_packet("list", 0, user_list)
-        self.sock.sendto(packet.encode(), addr)
-
-    def handle_join(self, username, addr):
-        if username in self.clients:
-            # Reject the new connection attempt if the username is already in use
-            msg = util.make_packet("error", 0, "Username unavailable. Please choose a different username.")
-            self.sock.sendto(msg.encode(), addr)
-            print(f"Rejected join attempt with username '{username}' from {addr} - Username already in use.")
-        elif len(self.clients) >= self.MAX_NUM_CLIENTS:
-            msg = util.make_packet("error", 0, "Server full")
-            self.sock.sendto(msg.encode(), addr)
+        if len(self.clients) >= util.MAX_NUM_CLIENTS:
+            # Server full scenario
+            self.send_response("err_server_full", 2, None, addr)
+            print(f"Client {username} from {addr} cannot join as server is full")
+            print("disconnected: server full")
+        elif username in self.clients:
+            # Username already taken scenario
+            self.send_response("err_username_unavailable", 2, None, addr)
+            print(f"Client {username} from {addr} already exists")
+            print("disconnected: username not available")
         else:
-            # Accept the new client if the username is not in use
+            # Successful join
             self.clients[username] = addr
-            print(f"Client {username} joined from {addr}")
+            self.reverse_clients[addr] = username
+            print(f"join: {username}")
 
-    def handle_message(self, params, addr):
-        num_users = int(params[0])
-        users = params[1:num_users+1]
-        message = ' '.join(params[num_users+1:])
-        for user in users:
-            if user in self.clients:
-                self.sock.sendto(message.encode(), self.clients[user])
+    def handle_list_request(self, addr):
+        # Handles request to list all users.
+        username = self.reverse_clients[addr]
+        sorted_clients = sorted(self.clients.keys())
+        user_list = f"{len(sorted_clients)} {' '.join(sorted_clients)}"
+        self.send_response("response_users_list", 3, user_list, addr)
+        print(f"request_users_list: {username}")
 
-    def handle_quit(self, addr):
-        for username, address in self.clients.items():
-            if address == addr:
-                del self.clients[username]
-                break
-        print(f"{username} disconnected.")
-    
-    def handle_disconnect(self, username, addr):
-        if username in self.clients:
-            print(f"Client {username} disconnected.")
-            del self.clients[username]  # Remove the client from active clients
+    def handle_send_message(self, data, addr):
+        # Processes a message sending request to other clients.
+        username = self.reverse_clients[addr]
+        parts = data.split(' ')
+        num_users = int(parts[1])
+        user_list = parts[2:num_users+2]
+        message = " ".join(parts[num_users+2:])
 
-    def shutdown_server(self):
-        self.sock.close()
-        print("Server has been shut down.")
+        for recv_user in user_list:
+            if recv_user in self.clients:
+                recv_addr = self.clients[recv_user]
+                self.send_response("forward_message", 4, f"1 {username} {message}", recv_addr)
+            else:
+                print(f"msg: {username} to non-existent user {recv_user}")
+
+        print(f"msg: {username}")
+
+    def handle_disconnect(self, data, addr):
+        # Handles a client's disconnection request.
+        username = data.split(' ')[1]
+        del self.clients[username]
+        del self.reverse_clients[addr]
+        print(f"disconnected: {username}")
+
+    def handle_unknown_message(self, msg_type, addr):
+        # Deals with unknown message types.
+        self.send_response("err_unknown_message", 2, None, addr)
+        print(f"Unknown message type: {msg_type}")
+        print(f"disconnected: {addr} sent unknown command")
+
+
 
 # Do not change below part of code
 

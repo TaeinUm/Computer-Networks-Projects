@@ -28,8 +28,6 @@ class Client:
         self.sock.settimeout(None)
         self.sock.bind(('', random.randint(10000, 40000)))
         self.name = username
-        self.window_size = window_size
-        self.running = True
 
     def start(self):
         '''
@@ -38,94 +36,117 @@ class Client:
         Use make_message() and make_util() functions from util.py to make your first join packet
         Waits for userinput and then process it
         '''
-        join_message = util.make_packet("join", 0, self.name)
-        self.sock.sendto(join_message.encode(), (self.server_addr, self.server_port))
-        
-        print("Type 'help' for a list of commands.")
-        while self.running:
-            try:
-                msg = input()
-                if msg.startswith("quit"):
-                    self.send_quit()
-                    break
-                elif msg.startswith("list"):
-                    self.request_users_list()
-                elif msg.startswith("msg"):
-                    if self.validate_message_command(msg):
-                        self.send_message(msg)
-                    else:
-                        print("Incorrect message format. Usage: msg <number_of_users> <username1> ... <message>")
-                elif msg.startswith("help"):
-                    self.print_help()
-                else:
-                    print("Unknown command. Type 'help' for a list of valid commands.")
-            except KeyboardInterrupt:
-                self.send_quit()
-            
+
+        # Initial connection setup by sending a JOIN message.
+        self.send_to_server("join", 1, self.name)
+
+        while True:
+            user_input = input().strip().split(' ')
+            cmd = user_input[0]
+            param = user_input[1:]
+
+            # Command processing
+            if cmd == "msg":
+                self.handle_message_command(param)
+            elif cmd == "list":
+                self.send_to_server("request_users_list", 2)
+            elif cmd == "help":
+                self.print_help()
+            elif cmd == "quit":
+                self.handle_quit()
+            else:
+                print("incorrect userinput format")
+
+    def send_to_server(self, message_type, message_format, data=""):
+        '''
+        Constructs and sends a packet to the server based on the message type and data.
+        '''
+        msg = util.make_message(message_type, message_format, data)
+        packet = util.make_packet(msg=msg)
+        self.sock.sendto(packet.encode(), (self.server_addr, self.server_port))
+
+    def handle_message_command(self, param):
+        '''
+        Processes the 'msg' command to send messages to other clients through the server.
+        '''
+        user_num = int(param[0])
+        user_list = param[1:user_num+1]
+        message = " ".join(param[user_num+1:])
+        data = f"{user_num} {' '.join(user_list)} {message}"
+        self.send_to_server("send_message", 4, data)
+
+    def print_help(self):
+        '''
+        Displays help information about client commands.
+        '''
+        print("Client")
+        print("-u username | --user=username The username of Client")
+        print("-p PORT | --port=PORT The server port, defaults to 15000")
+        print("-a ADDRESS | --address=ADDRESS The server ip or hostname, defaults to localhost")
+        print("-w WINDOW_SIZE | --window=WINDOW_SIZE The window_size, defaults to 3")
+        print("-h | --help Print this help")
+
+    def handle_quit(self):
+        '''
+        Processes the 'quit' command to disconnect from the server and exit the application.
+        '''
+        self.send_to_server("disconnect", 1, self.name)
+        print("quitting")
+        sys.exit(0)
 
     def receive_handler(self):
         '''
         Waits for a message from server and process it accordingly
         '''
-        while self.running:
-            try:
-                data, _ = self.sock.recvfrom(1024)
-                message = data.decode('utf-8')
-                msg_type, seqno, content, checksum = util.parse_packet(message)
-                if util.validate_checksum(message):
-                    if "error" in msg_type:
-                        print(f"Error from server: {content}")
-                        self.running = False  # Stop the client if username is unavailable
-                        self.sock.close()
-                        break
-                    else:
-                        print(content)  # Display the received message with the sender info
-                else:
-                    print("Received corrupted message")
-            except socket.error as e:
-                if not self.running:
-                    continue
-                else:
-                    print("Socket error:", e)
-    
-    def validate_message_command(self, msg):
-        parts = msg.split()
-        if len(parts) < 3:
-            return False
-        try:
-            int(parts[1])  # This checks if the number of users is an integer
-            return True
-        except ValueError:
-            return False
+         
+        while True:
+            message, addr = self.sock.recvfrom(2048)
+            message = message.decode()
+            pck_type, seqno, data, checksum = util.parse_packet(message)
+            msg_type, data = data.split(' ', maxsplit=1)
 
-    def send_message(self, msg):
-        _, num_users, *rest = msg.split()
-        num_users = int(num_users)
-        message = ' '.join(rest[num_users:])
-        usernames = rest[:num_users]
-        formatted_message = ' '.join([str(num_users)] + usernames + [message])
-        packet = util.make_packet("msg", 0, formatted_message)
-        self.sock.sendto(packet.encode(), (self.server_addr, self.server_port))
+            # Message handling based on type from server.
+            if msg_type == "response_users_list":
+                self.handle_users_list(data)
+            elif msg_type == "forward_message":
+                self.handle_forward_message(data)
+            else:
+                self.handle_error_message(msg_type)
 
-    def request_users_list(self):
-        packet = util.make_packet("list", 0, "")
-        self.sock.sendto(packet.encode(), (self.server_addr, self.server_port))
+    def handle_users_list(self, data):
+        '''
+        Processes and prints a list of users sent by the server.
+        '''
+        data = data.split(' ')
+        user_num = int(data[1])
+        user_list = " ".join(data[2:user_num+2])
+        print(f"list: {user_list}")
 
-    def send_quit(self):
-        disconnect_msg = util.make_packet("disconnect", 0, self.name)
-        self.sock.sendto(disconnect_msg.encode(), (self.server_addr, self.server_port))
-        self.running = False  # Set running flag to False to stop the receiver thread
-        self.sock.close()
-        print(f"{self.name} disconnected.")
+    def handle_forward_message(self, data):
+        '''
+        Processes and displays messages forwarded by the server from other clients.
+        '''
+        data = data.split(' ')
+        sender = data[2]
+        message = " ".join(data[3:])
+        print(f"msg: {sender}: {message}")
 
-    def print_help(self):
-        print("Available commands:")
-        print("  msg <number_of_users> <username1> <username2> ... <message> - Send a message.")
-        print("  list - Request a list of connected users.")
-        print("  quit - Quit the chat application.")
-        print("  help - Print this help message.")
+    def handle_error_message(self, msg_type):
+        '''
+        Handles error messages from the server and closes the connection.
+        '''
+        error_messages = {
+            "err_unknown_message": "server received an unknown command",
+            "err_server_full": "server full",
+            "err_username_unavailable": "username not available"
+        }
 
+        if msg_type in error_messages:
+            self.sock.close()
+            print(f"disconnected: {error_messages[msg_type]}")
+            sys.exit(1)
 
+            
 
 # Do not change below part of code
 if __name__ == "__main__":
