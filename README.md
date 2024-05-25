@@ -12,6 +12,9 @@ This repository contains projects and assignments from the "Computer Networks" c
 
 ## Projects Overview
 Each folder in this repository corresponds to a specific project. These include:
+- Web Server And Proxy
+- PCAP - TCP Flow Analyzer
+- Simple Chat Application Using UDP
 
 
 
@@ -21,11 +24,6 @@ Through the projects and assignments in this repository, I have demonstrated:
 - Ability to apply OSI model concepts to analyze and solve networking problems.
 - Proficiency in designing network systems based on theoretical principles and practical considerations.
 
-
-
-## Technologies Used
-- [List all technologies, programming languages, and tools used in the projects]
-- Example: Python, Wireshark, TCP/IP simulation tools
 
 
 
