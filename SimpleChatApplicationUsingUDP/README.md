@@ -5,7 +5,7 @@
 
 
 ## Overview
-This project, part of the CSE 310 coursework at Stony Brook University, implements a basic chat application using UDP, a transport protocol that does not ensure reliable communication. The application consists of a server and multiple clients that can send and receive messages through the server.
+This project implements a basic chat application using UDP, a transport protocol that does not ensure reliable communication. The application consists of a server and multiple clients that can send and receive messages through the server.
 
 
 ## Components
