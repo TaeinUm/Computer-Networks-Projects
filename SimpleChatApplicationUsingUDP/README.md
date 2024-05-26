@@ -37,11 +37,15 @@ This project implements a basic chat application using UDP, a transport protocol
 
 ### Running the server
 Start the server using the following command:<br>
-`python3 server_1.py -p <port_number>`
+```sh
+python3 server_1.py -p <port_number>
+```
 
 ### Running the Client
 Start a client with a unique username:<br>
-`python3 client_1.py -p <server_port_number> -u <username>`
+```sh
+python3 client_1.py -p <server_port_number> -u <username>
+```
 
 ### Commands
 - **Send Message**: msg <number_of_users> <username1> <username2> ... <message>
@@ -54,7 +58,9 @@ Start a client with a unique username:<br>
 
 ## Testing
 To test your implementation of Part 1, use the provided test script.<br>
-`python3 tests/TestPart1.py`
+```sh
+python3 tests/TestPart1.py
+```
 
 
 
