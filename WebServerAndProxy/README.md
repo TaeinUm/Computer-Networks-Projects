@@ -41,14 +41,20 @@ This project contains the source code for a basic Web Server and a Web Proxy Ser
 ### Web Server
 
 1. Place `webserver.py` and an HTML file (the sample file, `HelloWorld.html`, is attached) in the same directory.
-2. Run the server using `python webserver.py`.
-3. Access the web server from a browser using the server's IP address and port. I used port 8080, e.g., `http://localhost:8080/HelloWorld.html`.
+2. Run the server using
+   ```sh
+   python webserver.py
+   ```
+5. Access the web server from a browser using the server's IP address and port. I used port 8080, e.g., http://localhost:8080/HelloWorld.html.
 
 ### Proxy Server
 
-1. Run the proxy server using `python proxyserver.py`.
-2. Configure your web browser to use the proxy with the server's IP address and port, e.g., `localhost` and `8888`.
-3. Access web pages through the proxy, e.g., `http://localhost:8888/http://gaia.cs.umass.edu/wireshark-labs/HTTP-wireshark-file2.html`.
+1. Run the proxy server using
+   ```sh
+   python proxyserver.py
+   ```
+3. Configure your web browser to use the proxy with the server's IP address and port, e.g., `localhost` and `8888`.
+4. Access web pages through the proxy, e.g., http://localhost:8888/http://gaia.cs.umass.edu/wireshark-labs/HTTP-wireshark-file2.html.
 
 ## Tested Webpages
 
