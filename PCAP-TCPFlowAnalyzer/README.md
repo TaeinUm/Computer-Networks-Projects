@@ -4,7 +4,7 @@
 
 
 ## Overview
-This project, part of the CSE 310 coursework at Stony Brook University, involves developing a comprehensive TCP flow analyzer using PCAP files. The analyzer parses PCAP files to extract and characterize TCP flows, providing detailed insights into TCP connections, throughput, and congestion control mechanisms. The tool is instrumental for network diagnostics and performance analysis.
+This project involves developing a comprehensive TCP flow analyzer using PCAP files. The analyzer parses PCAP files to extract and characterize TCP flows, providing detailed insights into TCP connections, throughput, and congestion control mechanisms. The tool is instrumental for network diagnostics and performance analysis.
 
 
 
