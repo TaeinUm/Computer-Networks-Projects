@@ -5,7 +5,7 @@
 
 
 ## Overview
-This project contains the source code for a basic Web Server and a Web Proxy Server, developed for the Computer Networks course at Stony Brook University. These applications illustrate the practical application of networking theories including TCP socket programming, handling HTTP requests, and implementing a caching mechanism for web contents.
+This project contains the source code for a basic Web Server and a Web Proxy Server. These applications illustrate the practical application of networking theories including TCP socket programming, handling HTTP requests, and implementing a caching mechanism for web contents.
 
 
 
